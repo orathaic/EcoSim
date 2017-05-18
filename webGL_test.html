@@ -1,0 +1,88 @@
+<!doctype html>
+<style>
+:root {background:#111;color:#eee;white-space:pre}
+</style>
+<script src="Creature.js"></script>
+<script src="webGL.js"></script>
+<script src="glMatrix-0.9.5.min.js"></script>
+<link rel="import" id="shader-fs" type="x-shader/x-fragment" href="./fragmentShader.frag">
+<link rel="import" id="shader-vs" type="x-shader/x-vertex" href="./vertexShader.vert">
+<script>
+"use strict";
+
+var mainNeighbourhood = []
+var n,m, pixelsPerCommunity
+n = m = 4
+pixelsPerCommunity = 800/n;
+
+for(var i = 0; i < n; i++){
+	for(var j = 0; j < m; j++){
+
+		mainNeighbourhood[(i*n+j)] = new Community(i,j,mainNeighbourhood, pixelsPerCommunity) 
+	}
+}
+
+for (var i = 0; i < 2; i++) {
+    new Plant(
+        mainNeighbourhood[3]
+    	,'green'
+       	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+       	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+    )
+}
+
+Canvas.Neighbourhood = mainNeighbourhood;
+
+Canvas.go = function () { 
+
+	this.Interval = setInterval(() => {
+    mainNeighbourhood.forEach(Community => Community.getCreatures().forEach(creature => creature.step()) ) 
+	},1000/60)
+	
+/*	
+	requestAnimationFrame(Canvas.redraw( mainCommunity.getCreatures() ));
+*/
+	this.ReDrawInterval = setInterval(() => {
+		
+	this.drawScene(this.webGL, this.pMatrix, this.mvMatrix);
+	},1000/60)
+}
+
+Canvas.stop = function () { 
+		clearInterval(this.Interval)
+		clearInterval(this.ReDrawInterval)
+	this.Drawing = false
+}
+
+Canvas.toggledraw = function () {
+	if(Canvas.Drawing == undefined || Canvas.Drawing == false)
+			Canvas.go()
+		else Canvas.stop()
+}
+
+document.onkeypress = function () { 
+		switch(event.which) { 
+		case 103: Canvas.go(); break;
+		case 115: Canvas.stop(); break;
+		default:
+		}
+}
+
+window.onload = function () {
+	document.body.textContent = "Press (G)o to begin simulation \nAnd to (S)top or pause simulation\n"
+
+	var Button = document.createElement("Button")
+	Button.innerHTML = "Go"
+	document.body.appendChild(Button)
+
+	Button.addEventListener("click", Canvas.toggledraw)
+
+	var C = document.createElement("Canvas")
+	C.id = "Canvas"
+	C.setAttribute("width", (window.innerWidth-10));
+	C.setAttribute("height", (window.innerHeight-95));
+	document.body.appendChild(C);
+
+	Canvas.init();
+}
+</script>
