@@ -118,6 +118,10 @@ class Carnivore extends Creature {
 		this.community = newNeighbourhood
 		this.die()
 	}
+
+	getColour() {
+	return [1.0, 0.0, 0.0, 1.0];
+	}
 }
 
 class Herbi extends Creature {
@@ -185,6 +189,10 @@ class Herbi extends Creature {
 		newNeighbourhood.Herbis.push(this)
 		this.community = newNeighbourhood
 	}
+
+	getColour() {
+	return [0.0, 0.0, 1.0, 1.0];
+	}
 }
 
 class Plant extends Creature {
@@ -243,6 +251,10 @@ class Plant extends Creature {
 		        throw new Error('Creature community corruption error.')
 		    }
 		this.community = newNeighbourhood
+	}
+
+	getColour() {
+	return [0.0, 1.0, 0.0, 1.0];
 	}
 }
 

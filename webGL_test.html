@@ -1,6 +1,6 @@
 <!doctype html>
 <style>
-:root {background:#111;color:#eee;white-space:pre}
+:root {background:#222;color:#eee;white-space:pre}
 </style>
 <script src="Creature.js"></script>
 <script src="webGL.js"></script>
@@ -34,23 +34,15 @@ for (var i = 0; i < 2; i++) {
 Canvas.Neighbourhood = mainNeighbourhood;
 
 Canvas.go = function () { 
-
 	this.Interval = setInterval(() => {
     mainNeighbourhood.forEach(Community => Community.getCreatures().forEach(creature => creature.step()) ) 
-	},1000/60)
-	
-/*	
-	requestAnimationFrame(Canvas.redraw( mainCommunity.getCreatures() ));
-*/
-	this.ReDrawInterval = setInterval(() => {
-		
-	this.drawScene(this.webGL, this.pMatrix, this.mvMatrix);
-	},1000/60)
+	},1000/10)
+	this.Drawing = true
+	requestAnimationFrame(Canvas.tick);
 }
 
 Canvas.stop = function () { 
-		clearInterval(this.Interval)
-		clearInterval(this.ReDrawInterval)
+	clearInterval(this.Interval)
 	this.Drawing = false
 }
 
@@ -58,6 +50,16 @@ Canvas.toggledraw = function () {
 	if(Canvas.Drawing == undefined || Canvas.Drawing == false)
 			Canvas.go()
 		else Canvas.stop()
+}
+
+Canvas.tick = function (timestamp) {
+		
+		/*if (!Canvas.start) Canvas.start = timestamp;
+			var progress = timestamp - Canvas.start;
+		if(progress > 20) { */
+			Canvas.drawScene(Canvas.webGL, Canvas.pMatrix, Canvas.mvMatrix);
+		//}
+	if(Canvas.Drawing) window.requestAnimationFrame(Canvas.tick);
 }
 
 document.onkeypress = function () { 

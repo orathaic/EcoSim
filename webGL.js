@@ -1,21 +1,37 @@
 "use strict";
+var BufferStore = {}
+
+BufferStore.GetBuffer = function ( shape, number, factor ) {
+	if(this[shape] === undefined || this[shape][number] === undefined || this[shape][number][factor] === undefined) return false
+	else return this[shape][number][factor]
+}
+
+BufferStore.SetBuffer = function ( shape, number, factor, buffer ) {
+	if(this[shape] === undefined) this[shape] = []
+
+	if(this[shape][number] === undefined) this[shape][number] = []	
+	this[shape][number][factor] = buffer
+
+	return true
+}
+
 var Canvas = {};
 
 Canvas.init = function () {
-	this.webGL = Canvas.initWebGL( document.getElementById("Canvas") );
+	this.canvasEl = document.getElementById("Canvas")
+	this.webGL = Canvas.initWebGL( this.canvasEl );
 	if(!this.webGL) {console.log('error initialising webGL'); return;}
 
-	this.squareVertexPositionBuffer = this.initBuffers(this.webGL);
 	this.initShaders(this.webGL);
-    this.webGL.enable(this.webGL.DEPTH_TEST);
 
     this.mvMatrix = mat4.create();
+	this.mvMatrixStack = [];
     this.pMatrix = mat4.create();
 
-    this.webGL.clearColor(0.1, 0.1, 0.1, 1.0);
-    this.webGL.enable(this.webGL.DEPTH_TEST);
+//    this.webGL.enable(this.webGL.DEPTH_TEST);
 
-    this.drawScene(this.webGL, this.pMatrix, this.mvMatrix);
+	this.drawScene(Canvas.webGL, Canvas.pMatrix, Canvas.mvMatrix);
+	window.requestAnimationFrame(Canvas.tick);
 }
 
 Canvas.initWebGL = function (canvasEl){
@@ -26,56 +42,45 @@ Canvas.initWebGL = function (canvasEl){
 
 	if (!gl) {
 		console.log('Unable to initialize WebGL. Your browser may not support it.');
-		  }
+		return false;
 	// If we don't have a GL context, give up now
-	if(!gl) {return false;} 
-
-	gl.clearColor(0.1, 0.1, 0.1, 1.0);
-
-	return gl
-}
-
-Canvas.initBuffers = function (gl) {
-
-	var squareVertexPositionBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
+		  }
+	else {
+		gl.viewportWidth = canvasEl.width;
+		gl.viewportHeight = canvasEl.height;
+		gl.clearColor(0.1, 0.1, 0.1, 1.0);
 	
-	var vertices = [
-		1.0,  1.0,  0.0,
-		-1.0, 1.0,  0.0,
-		1.0,  -1.0, 0.0,
-		-1.0, -1.0, 0.0
-	];
-	  
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-    squareVertexPositionBuffer.itemSize = 3;
-    squareVertexPositionBuffer.numItems = 4;
-
-	return squareVertexPositionBuffer;
+		return gl
+	}
 }
+
 Canvas.initShaders = function (gl){
-	var fragmentShader = this.getShader(gl, 'shader-fs');
-	var vertexShader = this.getShader(gl, 'shader-vs');
+	var fragmentShader = this.getShader(gl, 'shader-vs');
+	var vertexShader = this.getShader(gl, 'shader-fs');
 
 	// Create the shader program
-	gl.shaderProgram = gl.createProgram();
+	this.shaderProgram = gl.createProgram();
 
-	gl.attachShader(gl.shaderProgram, vertexShader);
-	gl.attachShader(gl.shaderProgram, fragmentShader);
-	gl.linkProgram(gl.shaderProgram);
+	gl.attachShader(this.shaderProgram, vertexShader);
+	gl.attachShader(this.shaderProgram, fragmentShader);
+	gl.linkProgram(this.shaderProgram);
 
 	// If creating the shader program failed, alert
-	if (!gl.getProgramParameter(gl.shaderProgram, gl.LINK_STATUS)) {
-	console.log('Unable to initialize the shader program: ' + gl.getProgramInfoLog(gl.shaderProgram));
+	if (!gl.getProgramParameter(this.shaderProgram, gl.LINK_STATUS)) {
+	console.log('Unable to initialize the shader program: ' + gl.getProgramInfoLog(this.shaderProgram));
 	}
 
-	gl.useProgram(gl.shaderProgram);
+	gl.useProgram(this.shaderProgram);
 
-	var vertexPositionAttribute = gl.getAttribLocation(gl.shaderProgram, 'aVertexPosition');
-	gl.enableVertexAttribArray(vertexPositionAttribute);
+    this.shaderProgram.vertexPositionAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
+
+    this.shaderProgram.vertexColorAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexColor");
+    gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
+
+    this.shaderProgram.pMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uPMatrix");
+    this.shaderProgram.mvMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
 }
-//	var horizAspect = 480.0/640.0;
 
 Canvas.getShader = function (gl, id, type) {
 	var shaderScript, theSource, currentChild, shader, shaderType;
@@ -120,47 +125,100 @@ Canvas.resizeContext = function (gl) {
 }
 
 Canvas.drawScene = function (gl, pMatrix, mvMatrix) {
-
-	gl.viewport(0, 0, 800, 640);
+//	gl.viewport(0, 0, this.canvasEl.width, this.canvasEl.height);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+//	console.log('in draw Scene')
+	for(var i = 0, l = Canvas.Neighbourhood.length; i < l; i++)
+	{
+		for(var j = 0, m = Canvas.Neighbourhood[i].Plants.length; j < m; j++)
+		{ Canvas.draw( gl, Canvas.Neighbourhood[i].Plants[j] ) }
 
-	mat4.perspective(45, 800 / 640, 0.1, 100.0, pMatrix);
-	mat4.identity(mvMatrix);
+		for(j = 0, m = Canvas.Neighbourhood[i].Herbis.length; j < m; j++)
+		{ Canvas.draw( gl, Canvas.Neighbourhood[i].Herbis[j] ) }
 
-	mat4.translate(mvMatrix, [-1.5, 0.0, -7.0]);
- 
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.squareVertexPositionBuffer);
-	gl.vertexAttribPointer(gl.shaderProgram.vertexPositionAttribute, this.squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+		for(j = 0, m = Canvas.Neighbourhood[i].Carnivores.length; j < m; j++)
+		{ Canvas.draw( gl, Canvas.Neighbourhood[i].Carnivores[j] ) }
+	}
+}
+
+Canvas.draw = function (gl, Creature) {
+	var diff = 6;
+	var vertexPositionBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+
+	var vertices = this.createCircleVertices(diff, Math.max(Creature.energy,2));
+
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+    vertexPositionBuffer.itemSize = 3;
+    vertexPositionBuffer.numItems = diff+2;
+
+	this.vertexPositionBuffer = vertexPositionBuffer;
+
+	var vertexColorBuffer = gl.createBuffer();;
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
+
+	var colours = this.createCircleColours(Creature, diff+2);
+
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colours), gl.STATIC_DRAW);	  
+
+    vertexColorBuffer.itemSize = 4;
+    vertexColorBuffer.numItems = diff+2;
+
+	this.vertexColorBuffer =  vertexColorBuffer;
+
+	mat4.perspective(45, this.canvasEl.width / this.canvasEl.height, 0.1, 100.0, Canvas.pMatrix);
+	mat4.identity(Canvas.mvMatrix);
+
+	mat4.translate(Canvas.mvMatrix, [(Creature.x-500)/350, (Creature.y-400)/350, -3.0]);// position
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexPositionBuffer);
+	gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, this.vertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexColorBuffer);
+	gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, this.vertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
 	Canvas.setMatrixUniforms(gl, Canvas.pMatrix, Canvas.mvMatrix);
-	gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.squareVertexPositionBuffer.numItems);
-
-
+	gl.drawArrays(gl.TRIANGLE_FAN, 0, this.vertexPositionBuffer.numItems);
 }
 
 Canvas.setMatrixUniforms = function (gl, pMatrix, mvMatrix) {
-        gl.uniformMatrix4fv(gl.shaderProgram.pMatrixUniform, false, pMatrix);
-        gl.uniformMatrix4fv(gl.shaderProgram.mvMatrixUniform, false, mvMatrix);
-    }
+        gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, mvMatrix);
+}
 
-Canvas.redraw = function (Creatures) {
+Canvas.createCircleVertices = function (num, r)
+{	var Vertices
 	
-/*	var c = document.getElementById("Canvas");
-	var glctx = c.getContext("webgl");*/
-	
-/*		for(var i =0, l =Creatures.length; i < l; i++)
-		 { // Draw loop
-			Creature = Creatures[i];
-			ctx.beginPath();
-			ctx.arc(Creature.x,Creature.y,Math.max(Creature.energy,1)/20,0,6.283185307179586); // 6.283185307179586 is 2 * Math.PI 
-			ctx.fillStyle = Creature.type;
-			ctx.fill();
-		 }
-*/
+	if(Vertices = BufferStore.GetBuffer('CircleVertices', num, r)) return Vertices
+
+	else {
+		Vertices = [0.0, 0.0, 0.0];
+		for(var i = 0; i <= num; i++)
+		{Vertices.push( r/3750*Math.sin(2*Math.PI*i/num), r/3750*Math.cos(2*Math.PI*i/num), 0 )}
+		BufferStore.SetBuffer('CircleVertices', num, r, Vertices)
+		return Vertices
+	}
+}
+
+Canvas.createCircleColours = function (Creature, num)
+{
+	var Colours
+	if(Colours = BufferStore.GetBuffer(Creature.type, num, 0)) return Colours
+
+	else {
+		Colours = Creature.getColour()
+		for(var i = 0; i <= num; i++)
+		{Colours.push(0, 0, 0, 0.1)}
+		BufferStore.SetBuffer(Creature.type, num, 0, Colours)	
+		return Colours;
+	}
 }
 
 Canvas.drawCommunity = function (community) {
+	console.log('Not Implemented.')
 	var c = document.getElementById("Canvas")
-	var ctx = c.getContext("2d")
+/*	var ctx = c.getContext("2d")
 	ctx.beginPath()
 	ctx.moveTo(community.lowerBound,community.leftBound)
 	ctx.lineTo(community.upperBound,community.leftBound)
@@ -168,8 +226,11 @@ Canvas.drawCommunity = function (community) {
 	ctx.lineTo(community.lowerBound,community.rightBound)
 	ctx.lineTo(community.lowerBound,community.leftBound)
 	ctx.strokeStyle = "Yellow"
-	ctx.stroke()
+	ctx.stroke()*/
 }
+
 Canvas.drawCommunities = function (neighbourhood) {
+	console.log('Not implemented in this version.')
+	return
 	for(var i = 0, l = neighbourhood.length; i < l; i++) {Canvas.drawCommunity(neighbourhood[i])}
 }
