@@ -209,7 +209,7 @@ Canvas.createCircleColours = function (Creature, num)
 	else {
 		Colours = Creature.getColour()
 		for(var i = 0; i <= num; i++)
-		{Colours.push(0, 0, 0, 0.1)}
+		{Colours.push(0, 0, 0, 0.5)}
 		BufferStore.SetBuffer(Creature.type, num, 0, Colours)	
 		return Colours;
 	}

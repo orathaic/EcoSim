@@ -120,7 +120,7 @@ class Carnivore extends Creature {
 	}
 
 	getColour() {
-	return [1.0, 0.0, 0.0, 1.0];
+	return [0.8, 0.0, 0.0, 1.0];
 	}
 }
 
@@ -191,7 +191,7 @@ class Herbi extends Creature {
 	}
 
 	getColour() {
-	return [0.0, 0.0, 1.0, 1.0];
+	return [0.0, 0.0, 0.8, 1.0];
 	}
 }
 
@@ -254,7 +254,7 @@ class Plant extends Creature {
 	}
 
 	getColour() {
-	return [0.0, 1.0, 0.0, 1.0];
+	return [0.0, 0.8, 0.0, 1.0];
 	}
 }
 
