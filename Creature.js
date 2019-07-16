@@ -287,8 +287,9 @@ constructor (type,x,y,birthmark) {
 				new Herbi ("blue",Math.round(this.x+(Math.random() - 0.5 )*64),Math.floor(this.y+(Math.random() - 0.5)*64),this.energy)
 			}            
 			this.energy -= 90
-        }
+	        }
 	}
+
 }
 
 

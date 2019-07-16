@@ -105,6 +105,18 @@ Canvas.redraw = function (Creatures) {
 
 	if(this.drawComBool == true) this.drawCommunities(this.Neighbourhood)
 	if(Canvas.targetCreature != undefined)	{ Canvas.updateInfoDiv(Canvas.targetCreature, Canvas.infoDiv) }
+	if(Canvas.debug && Canvas.targetCreature != undefined) { Canvas.drawHighlights(Canvas.targetCreature.shade, ctx) }
+}
+
+Canvas.drawHighlights = function (targetArray, ctx)  {
+
+//	console.log("In draw highlights "+targetArray) 
+	targetArray.forEach(target => { 
+			ctx.beginPath();
+			ctx.arc(target.x,target.y,Math.max((target.size)/10,1.5),0,6.283185307179586); // 6.283185307179586 is 2 * Math.PI 
+			ctx.strokeStyle = "purple";
+			ctx.stroke(); 
+			})
 }
 
 Canvas.drawCom = function (B) {this.drawComBool = B}
@@ -214,6 +226,12 @@ Canvas.recordState = function() {
 	return null
   } else {console.log("no storage found."); return "no localstorage found."}
 }
+Canvas.debug = false;
+
+Canvas.toggleDebug = function () {
+	if(!Canvas.debug) { Canvas.debug = true}
+	else { Canvas.debug = false}
+}
 
 document.onkeypress = function () { 
 		switch(event.which) { 
@@ -259,7 +277,14 @@ window.onload = function () {
 	Canvas.infoDivContainer.CloseButton = document.createElement("div")
 	Canvas.infoDivContainer.CloseButton.className = "close"
 	Canvas.infoDivContainer.CloseButton.textContent = "x"
+
 	document.body.lastChild.appendChild(Canvas.infoDivContainer.CloseButton)
+
+	Canvas.infoDivContainer.DebugButton = document.createElement("button")
+	Canvas.infoDivContainer.DebugButton.textContent = "debug"
+	Canvas.infoDivContainer.DebugButton.addEventListener("click", Canvas.toggleDebug)
+
+	document.body.lastChild.appendChild(Canvas.infoDivContainer.DebugButton)
 
 	Canvas.infoDiv = document.createElement("div")
 	document.body.lastChild.appendChild(Canvas.infoDiv)
