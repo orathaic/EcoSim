@@ -175,7 +175,7 @@ class Herbi extends Creature {
 }
 
 class Plant extends Creature {
-    constructor (type,x,y,birthmark, moveDistance = 0, range = 12, size = 10, MinToReproduce = 120, offSpringEnergy = 45, offSpringSize = 10, spawnMaxDistance = 48, mutationRate = 2) {
+    constructor (type,x,y,birthmark, moveDistance = 0, range = 12, size = 10, MinToReproduce = 10, offSpringEnergy = 5, offSpringSize = 10, spawnMaxDistance = 48, mutationRate = 10) {
         if (['green', 'yellow'].indexOf(type) < 0) throw new TypeError(`type: ${type} is not a valid Plant-Creature type`)
 		
 		var result = super(type,x,y,birthmark)
