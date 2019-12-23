@@ -1,0 +1,297 @@
+<!doctype html>
+<style>
+:root {background:#111;color:#eee;white-space:pre}
+div.bgbox {display:none; position:absolute; z-index:4; opacity: 0.6; background-color:grey; border-radius:15px; padding:5px }
+div.close {float:right; margin-top:10px; margin-right:10px;}
+/*#Canvas {height: 100%; width: 100%}*/
+</style>
+<script src="Creature_evo.js"></script>
+<script src="Communities.js"></script>
+<script>
+"use strict";
+
+var CanvasSize = 600
+var mainNeighbourhood = []
+var n,m, pixelsPerCommunity
+n = m = 2
+pixelsPerCommunity = CanvasSize/n;
+
+for(var i = 0; i < n; i++){
+	for(var j = 0; j < m; j++){
+
+		mainNeighbourhood[(i*n+j)] = new Community(i,j,mainNeighbourhood, pixelsPerCommunity) 
+	}
+}
+
+ if( window.localStorage.getItem('creatures') )
+	  { //console.log('getting items from ls')
+		var creatureArray = JSON.parse(localStorage.getItem('creatures'))
+
+		for(var i=0, l = creatureArray.length; i<l; i++)
+		{	var creature = creatureArray[i]
+			if(creature.type == "green")	new Plant (creature.type
+					,creature.x, creature.y, creature.energy + 1, creature.moveDistance
+					,creature.range
+					,creature.size
+					,creature.MinToReproduce
+					,creature.offSpringEnergy
+					,creature.offSpringSize
+					,creature.spawnMaxDistance
+					,creature.mutationRate
+					)
+		
+			else if(creature.type == "blue")	new Herbi (creature.type
+					,creature.x, creature.y, creature.energy + 1
+/*					,creature.moveDistance
+					,creature.range
+					,creature.MinToReproduce
+					,creature.offSpringEnergy
+					,creature.size
+					,creature.spawnMaxDistance
+					,creature.mutationRate*/
+					)
+		}
+	  } 
+ else
+	{
+	for (var i = 0; i < 1; i++) {
+		new Plant(
+			'green'
+		   	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+		   	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+			,90
+		)
+		new Herbi(
+			'blue'
+		   	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+		   	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+		)
+	}
+}
+
+
+var Canvas = { drawComBool: false};
+Canvas.Neighbourhood = mainNeighbourhood;
+Canvas.targetCreature = undefined
+
+Canvas.addHerbi = function() {
+   new Herbi(
+		'blue'
+       	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+       	,Math.floor(pixelsPerCommunity*Math.random())+pixelsPerCommunity
+		)
+
+}
+
+Canvas.GetAll = function (Neighbourhood) {
+		return Neighbourhood.reduce( (allCreatures, Community) =>  allCreatures.concat(Community.getCreatures()) ,[])
+}
+
+Canvas.redraw = function (Creatures) {
+	if(!this.CanvasEL)
+		{this.CanvasEL = document.getElementById("Canvas");} 
+
+	var ctx = this.CanvasEL.getContext("2d");
+	ctx.clearRect(0, 0, this.CanvasEL.width, this.CanvasEL.height);
+
+	for(var i =0, l =Creatures.length; i < l; i++)
+		 { // Draw loop
+			Creature = Creatures[i];
+			ctx.beginPath();
+			ctx.arc(Creature.x,Creature.y,Math.max(Creature.size/10,1.5),0,6.283185307179586); // 6.283185307179586 is 2 * Math.PI 
+			ctx.fillStyle = Creature.type;
+			ctx.fill();
+		 }
+
+	if(this.drawComBool == true) this.drawCommunities(this.Neighbourhood)
+	if(Canvas.targetCreature != undefined)	{ Canvas.updateInfoDiv(Canvas.targetCreature, Canvas.infoDiv) }
+	if(Canvas.debug && Canvas.targetCreature != undefined) { Canvas.drawHighlights(Canvas.targetCreature.shade, ctx) }
+}
+
+Canvas.drawHighlights = function (targetArray, ctx)  {
+
+//	console.log("In draw highlights "+targetArray) 
+	targetArray.forEach(target => { 
+			ctx.beginPath();
+			ctx.arc(target.x,target.y,Math.max((target.size)/10,1.5),0,6.283185307179586); // 6.283185307179586 is 2 * Math.PI 
+			ctx.strokeStyle = "purple";
+			ctx.stroke(); 
+			})
+}
+
+Canvas.drawCom = function (B) {this.drawComBool = B}
+
+Canvas.drawCommunities = function (neighbourhood) {
+	for(var i = 0, l = neighbourhood.length; i < l; i++) {Canvas.drawCommunity(neighbourhood[i])}
+}
+
+Canvas.drawCommunity = function (community) {
+	var c = document.getElementById("Canvas")
+	var ctx = c.getContext("2d")
+	ctx.beginPath()
+	ctx.moveTo(community.lowerBound,community.leftBound)
+	ctx.lineTo(community.upperBound,community.leftBound)
+	ctx.lineTo(community.upperBound,community.rightBound)
+	ctx.lineTo(community.lowerBound,community.rightBound)
+	ctx.lineTo(community.lowerBound,community.leftBound)
+	ctx.strokeStyle = "Yellow"
+	ctx.stroke()
+}
+
+Canvas.takeOneStep = function () {
+	Canvas.GetAll(mainNeighbourhood).forEach(creature => creature.step())  
+	
+	Canvas.redraw( Canvas.GetAll(mainNeighbourhood) )
+}
+
+Canvas.go = function () { 
+	this.Interval = setInterval(() => {
+    Canvas.GetAll(mainNeighbourhood).forEach(creature => creature.step())  
+	},1000/60)
+	
+	this.Drawing = true
+	requestAnimationFrame(Canvas.tick);
+	Canvas.goButton.innerHTML = "Stop"
+}
+
+Canvas.stop = function () { 
+	clearInterval(this.Interval)
+	this.Drawing = false
+	Canvas.goButton.innerHTML = "Go"
+}
+
+Canvas.toggledraw = function () {
+	if(Canvas.Drawing == undefined || Canvas.Drawing == false)
+		 {Canvas.go();}
+	else {Canvas.stop();}
+}
+
+Canvas.tick = function (timestamp) {
+		if (!Canvas.start) Canvas.start = timestamp;
+			var progress = timestamp - Canvas.start;
+		if(progress > 60) { 
+			Canvas.redraw( Canvas.GetAll(mainNeighbourhood) )
+		}
+	if(Canvas.Drawing) window.requestAnimationFrame(Canvas.tick);
+}
+
+Canvas.GetInfo = function (infoDivContainer, event) {
+	var CanvasRectangle = Canvas.CanvasEL.getBoundingClientRect()
+	var targetCreature = Canvas.getCreatureByLoc(event.clientX - CanvasRectangle.left, event.clientY - CanvasRectangle.top)
+
+	var infoDiv = Canvas.infoDiv
+
+//	console.log(targetCreature)
+	if(targetCreature == undefined)
+	{
+		Canvas.infoDiv.innerHTML = "No creature found."
+		Canvas.targetCreature = undefined
+	}
+	else { Canvas.targetCreature = targetCreature
+		  Canvas.updateInfoDiv(targetCreature, infoDiv)
+		}
+	infoDivContainer.style.display = "block"
+	infoDivContainer.style.left = (event.clientX + 10)+ "px" 
+	infoDivContainer.style.top = (event.clientY +10 + window.scrollY) + "px"
+
+}
+
+Canvas.updateInfoDiv = function (targetCreature, infoDiv = Canvas.infoDiv) {
+	
+		infoDiv.innerHTML = targetCreature.getCreatureInfo()
+}
+
+Canvas.getCreatureByLoc = function (x, y) {
+	var allCreatures = Canvas.GetAll(mainNeighbourhood)
+	for(var i=0; i< allCreatures.length; i++)	
+	{ if (Math.abs(allCreatures[i].x - x) < (allCreatures[i].size/10)+1  && Math.abs(allCreatures[i].y - y) < (allCreatures[i].size/10)+1)
+		{ return allCreatures[i] }
+	}
+
+}
+
+Canvas.recordState = function() {
+	  
+  if(typeof(Storage) !== "undefined")
+   
+  { localStorage.removeItem('creatures')
+	var creatureString = '['
+	var creatureArray = Canvas.GetAll(mainNeighbourhood)
+	for(let creature in creatureArray) { creatureString += creatureArray[creature].creatureStringify()+ ","}
+		
+	creatureString = creatureString.replace(/,\s*$/, ""); 
+	creatureString += ']'
+	localStorage.setItem('creatures', creatureString )
+	//console.log("in record state.")
+	return null
+  } else {console.log("no storage found."); return "no localstorage found."}
+}
+Canvas.debug = false;
+
+Canvas.toggleDebug = function () {
+	if(!Canvas.debug) { Canvas.debug = true}
+	else { Canvas.debug = false}
+}
+
+document.onkeypress = function () { 
+		switch(event.which) { 
+		case 103: Canvas.go(); break;
+		case 115: Canvas.stop(); break;
+		default:
+		}
+}
+
+window.onload = function () {
+	document.body.textContent = "Press (G)o to begin simulation \nAnd to (S)top or pause simulation\n"
+
+	Canvas.goButton = document.createElement("Button")
+	Canvas.goButton.innerHTML = "Go"
+	document.body.appendChild(Canvas.goButton)
+
+	Canvas.stepButton = document.createElement("Button")
+	Canvas.stepButton.innerHTML = "Step"
+	document.body.appendChild(Canvas.stepButton)
+
+	Canvas.HerbiButton = document.createElement("Button")
+	Canvas.HerbiButton.innerHTML = "Add a Herbivore"
+	document.body.appendChild(Canvas.HerbiButton)
+
+	document.body.appendChild( document.createElement("br"))
+	Canvas.goButton.addEventListener("click", Canvas.toggledraw)
+	Canvas.stepButton.addEventListener("click", Canvas.takeOneStep)
+	Canvas.HerbiButton.addEventListener("click", Canvas.addHerbi)
+
+	var C = document.createElement("Canvas")
+	C.id = "Canvas"
+	C.setAttribute("height", CanvasSize);
+	C.setAttribute("width", CanvasSize);
+	document.body.appendChild(C)
+	Canvas.CanvasEL = C;
+
+	C.addEventListener("click", function() {Canvas.GetInfo(Canvas.infoDivContainer, event) })
+
+	Canvas.infoDivContainer = document.createElement("div")
+	Canvas.infoDivContainer.className = "bgbox"
+	document.body.appendChild(Canvas.infoDivContainer)
+	
+	Canvas.infoDivContainer.CloseButton = document.createElement("div")
+	Canvas.infoDivContainer.CloseButton.className = "close"
+	Canvas.infoDivContainer.CloseButton.textContent = "x"
+
+	document.body.lastChild.appendChild(Canvas.infoDivContainer.CloseButton)
+
+	Canvas.infoDivContainer.DebugButton = document.createElement("button")
+	Canvas.infoDivContainer.DebugButton.textContent = "debug"
+	Canvas.infoDivContainer.DebugButton.addEventListener("click", Canvas.toggleDebug)
+
+	document.body.lastChild.appendChild(Canvas.infoDivContainer.DebugButton)
+
+	Canvas.infoDiv = document.createElement("div")
+	document.body.lastChild.appendChild(Canvas.infoDiv)
+
+	Canvas.redraw( Canvas.GetAll(mainNeighbourhood) ) 
+
+//	document.body.addEventListener("beforeunload", Canvas.recordState)
+	window.onbeforeunload = function() { return Canvas.recordState(); }
+}
+</script>

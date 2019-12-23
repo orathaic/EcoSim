@@ -55,7 +55,7 @@ class Creature {
         else {
             this.energy -= 1
         }
-        if (this.energy < -100) {
+        if (this.energy < -20) {
             this.die()
         }
     }
@@ -115,45 +115,15 @@ class Creature {
 				if(next) targetArray.push(next)
 			}
 	}
-}
-
-class Carnivore extends Creature {
-    constructor (type,x,y,birthmark) {
-        if (['red'].indexOf(type) < 0) throw new TypeError(`type: ${type} is not a valid Carnivore-Creature type`)
-		
-		super(type,x,y,birthmark)	
-        this.energy = 80
-		this.moveDistance = 22
-		this.range=12
+	getCreatureInfo ()
+	{
+		return "Base Creature - info not implemented."
+	}
+	creatureStringify()
+	{
+		return `"type":"${this.type}","moveDistance":${this.moveDistance},"x":${this.x},"y":${this.y}`
 	}
 
-    eat () {
-		const range = this.range
-		var targetCommunities = [this.community]
-		this.addEdgeCommunities(range, targetCommunities) 
-
-		for(var i = 0, l = targetCommunities.length; i < l; i++)
-		{
-			targetCommunities[i].creatures['blue'].filter(
-				candidate => Math.abs(candidate.x - this.x) < range && Math.abs(candidate.y - this.y) < range
-			).forEach(prey => {
-		
-				prey.energy -= 80
-				this.energy -= 20
-				if(prey.energy < -10)            
-				{
-					this.energy += 50
-				}
-			})
-		}
-    }
-
-    reproduce () {
-        if (this.energy > 100) {
-            new Carnivore(this.type,Math.floor(this.x+((Math.random()-0.5)*8) ),Math.floor(this.y+(Math.random()-0.5)*8),this.energy)
-            this.energy -= 90
-        }
-    }
 }
 
 class Herbi extends Creature {
@@ -164,6 +134,7 @@ class Herbi extends Creature {
         this.energy = 80
 		this.moveDistance = 20
 		this.range = 10		
+		this.size = 1
 	}
 
     eat () {
@@ -187,7 +158,7 @@ class Herbi extends Creature {
 
     reproduce () {
         if (this.energy > 100) {
-			if(Math.random() * 100 > 0.2) {
+			if(Math.random() * 100 > 0.0) {
             new Herbi(this.type,Math.floor(this.x+Math.random()*4-2),Math.floor(this.y+Math.random()*4-2),this.energy)
             this.energy -= 90
 			}
@@ -195,21 +166,36 @@ class Herbi extends Creature {
 			}
         }
     }
+
+		creatureStringify()
+	{
+		
+		return `{` + super.creatureStringify()+`,"energy":${this.energy}}`
+	}
 }
 
 class Plant extends Creature {
-    constructor (type,x,y,birthmark) {
+    constructor (type,x,y,birthmark, moveDistance = 0, range = 12, size = 10, MinToReproduce = 120, offSpringEnergy = 45, offSpringSize = 10, spawnMaxDistance = 48, mutationRate = 2) {
         if (['green', 'yellow'].indexOf(type) < 0) throw new TypeError(`type: ${type} is not a valid Plant-Creature type`)
 		
 		var result = super(type,x,y,birthmark)
 		if(!result) return false
 
-        this.energy = 45
-		this.moveDistance = 0
-		this.range = 12
+        this.energy = (birthmark - 1)
+		this.moveDistance = moveDistance
+		this.range = range
 		this.shade = []
-// eat: max sunlight (11) loss per neighbour (2)		
+		
 		this.generateShade()
+
+		this.MinToReproduce = MinToReproduce
+		this.offSpringEnergy = offSpringEnergy
+		this.offSpringSize = offSpringSize // TODO: make this cost more energy!
+//		this.efficiency = 1.5 // efficiency should be an emergent quality.
+		this.size = size
+		this.spawnMaxDistance = spawnMaxDistance
+		this.mutationRate = 2 // as a percentage
+
     }
 
 	generateShade() {
@@ -230,6 +216,13 @@ class Plant extends Creature {
 			}
 	}
 
+	getTotalShade() {
+		var totalShade = 0
+		this.shade.forEach( function(shader){ return totalShade += shader.size} )
+		//console.log("total shade "+totalShade)
+		return totalShade * 0.05
+	}
+
 	loseShade(loss) {
 	var index = this.shade.indexOf(loss)
 		if (index >= 0) {
@@ -238,11 +231,19 @@ class Plant extends Creature {
 	}
 
     eat () {
-			this.energy += (11 - this.shade.length*2) // mmm solar power			
+			
+			this.energy = Math.floor( Math.min((this.energy + this.size*0.2 - this.getTotalShade()), this.size * 2 ) ) // mmm solar power		
+			
+			if(this.energy > (this.size * 2 * 0.9))	{this.grow() }
+	}
+
+	grow () {
+	 this.size += 2
+	 this.energy -= 20
 	}
 
     move ( ) {
-        if (this.energy < -100) {
+        if (this.energy < -10) {
 			this.shade.forEach(target => target.loseShade(this))
             this.die()
         }
@@ -250,44 +251,61 @@ class Plant extends Creature {
 
 
     reproduce () {
-        if (this.energy > 120) { var rand = Math.random() * 100
-			{if(rand > 2) 
-	            new Plant(this.type,Math.round(this.x+(Math.random() - 0.5 )*48),Math.floor(this.y+(Math.random() - 0.5)*48),this.energy)
-			else if (rand > 0.025)
-				new PoisonPlant("yellow",Math.round(this.x+(Math.random() - 0.5 )*64),Math.floor(this.y+(Math.random() - 0.5)*64),this.energy)
-			else 
-				new Herbi ("blue",Math.round(this.x+(Math.random() - 0.5 )*64),Math.floor(this.y+(Math.random() - 0.5)*64),this.energy)
-			}            
-			this.energy -= 90
+        if (this.energy > this.MinToReproduce) { var rand = Math.random() * 100
+			{if(rand > this.mutationRate) 
+
+	            new Plant(
+						this.type
+						,Math.round(this.x+(Math.random() - 0.5 )*this.spawnMaxDistance)
+						,Math.floor(this.y+(Math.random() - 0.5)*this.spawnMaxDistance)
+						,this.offSpringEnergy
+						,this.moveDistance 
+						,this.range 
+						,this.offSpringSize
+						,this.MinToReproduce 
+						,this.offSpringEnergy 
+						,this.offSpringSize // for the offspring's offspring 
+						,this.spawnMaxDistance
+						,this.mutationRate 
+						)
+				else
+				{	var mutant = [this.MinToReproduce, this.offSpringEnergy, this.offSpringSize, this.spawnMaxDistance, this.mutationRate]
+					rand *= 5
+					for(var i =0; i<this.mutationRate*5; i+= 1 )
+					{
+						if (Math.floor(rand-i) == 1) {mutant[i%5] = Math.round(mutant[i%5]* Math.pow(1.1, (i%2)?1:-1) )}
+					} 
+					new Plant( 
+						this.type
+						,Math.round(this.x+(Math.random() - 0.5 )*this.spawnMaxDistance)
+						,Math.floor(this.y+(Math.random() - 0.5)*this.spawnMaxDistance)
+						,this.offSpringEnergy // this is how much energy you give your offspring, we mutate that energy they will give their offspring.
+						,this.moveDistance //0
+						,this.range //12 
+						,this.offSpringSize
+						, ...mutant
+						)
+				} 
+	}           
+			this.energy -= this.offSpringEnergy
         }
 	}
-}
 
-class PoisonPlant extends Plant{
-constructor (type,x,y,birthmark) {
-        if (['yellow'].indexOf(type) < 0) throw new TypeError(`type: ${type} is not a valid Plant-Creature type`)
-		
-		var result = super(type,x,y,birthmark)
-		if(!result) return false
-
-        this.energy = 35
-		
-		//this.generateShade()
-    }
-    eat () {
-			this.energy += (11 - this.shade.length*3) // mmm solar power			
+	getCreatureInfo () { var targetCreature = this
+				return	`Creaure: ${targetCreature.type} \n`
+						+`Size: ${targetCreature.size/10} \n`
+						+`Energy: ${targetCreature.energy} \n`
+						+`Shaded by: ${targetCreature.shade.length} \n`
+						+`Breed When: ${targetCreature.MinToReproduce} \n`
+						+`Energy to offspring: ${targetCreature.offSpringEnergy} \n`
+						+`Spawn max Distance: ${targetCreature.spawnMaxDistance} \n`
+						+`Offspring size: ${targetCreature.offSpringSize} \n`
 	}
-    reproduce () {
-        if (this.energy > 120) { var rand = Math.random() * 100
-			{if(rand > 2) 
-	            new PoisonPlant(this.type,Math.round(this.x+(Math.random() - 0.5 )*128),Math.floor(this.y+(Math.random() - 0.5)*128),this.energy)
-			else if (rand > 0.01)
-				new Plant("green",Math.round(this.x+(Math.random() - 0.5 )*64),Math.floor(this.y+(Math.random() - 0.5)*64),this.energy)
-			else 
-				new Herbi ("blue",Math.round(this.x+(Math.random() - 0.5 )*64),Math.floor(this.y+(Math.random() - 0.5)*64),this.energy)
-			}            
-			this.energy -= 90
-	        }
+
+	creatureStringify()
+	{
+		
+		return `{` + super.creatureStringify()+`,"energy":${this.energy},"range":${this.range},"minToReproduce":${this.MinToReproduce},"offSpringEnergy":${this.offSpringEnergy}, "offSpringSize":${this.offSpringSize},"size":${this.size},"spawnDistance":${this.spawnMaxDistance},"mutationRate":${this.mutationRate} }`
 	}
 
 }
