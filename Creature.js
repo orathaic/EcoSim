@@ -208,7 +208,7 @@ class Plant extends Creature {
 		this.moveDistance = 0
 		this.range = 12
 		this.shade = []
-		
+// eat: max sunlight (11) loss per neighbour (2)		
 		this.generateShade()
     }
 
